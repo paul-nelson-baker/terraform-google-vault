@@ -35,10 +35,9 @@ resource "random_id" "vault" {
   byte_length = 2
 }
 
-resource "google_service_account" "vault" {
+data "google_service_account" "vault" {
   project      = var.project
   account_id   = var.vault_service_account_id
-  display_name = "Vault Service Account for KMS auto-unseal"
 }
 
 resource "google_storage_bucket" "vault" {
@@ -50,7 +49,7 @@ resource "google_storage_bucket" "vault" {
 resource "google_storage_bucket_iam_member" "member" {
   bucket = google_storage_bucket.vault.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.vault.email}"
+  member = "serviceAccount:${data.google_service_account.vault.email}"
 }
 
 # Create a KMS key ring
@@ -76,7 +75,7 @@ resource "google_kms_crypto_key" "vault" {
 resource "google_kms_key_ring_iam_member" "vault" {
   key_ring_id = google_kms_key_ring.vault.id
   role        = "roles/owner"
-  member      = "serviceAccount:${google_service_account.vault.email}"
+  member      = "serviceAccount:${data.google_service_account.vault.email}"
 }
 
 resource "google_cloud_run_service" "default" {
@@ -99,7 +98,7 @@ resource "google_cloud_run_service" "default" {
       }
     }
     spec {
-      service_account_name  = google_service_account.vault.email
+      service_account_name  = data.google_service_account.vault.email
       container_concurrency = var.container_concurrency
       containers {
         # Specifying args seems to require the command / entrypoint
@@ -155,5 +154,5 @@ output "app_url" {
 }
 
 output "service_account_email" {
-  value = google_service_account.vault.email
+  value = data.google_service_account.vault.email
 }
